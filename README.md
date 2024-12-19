@@ -6,18 +6,10 @@ The all-in-one starter kit for high-performance SaaS applications.
 
 - Secure user management and authentication with [Supabase](https://supabase.io/docs/guides/auth)
 - Powerful data access & management tooling on top of PostgreSQL with [Supabase](https://supabase.io/docs/guides/database)
-- Integration with [Stripe Checkout](https://stripe.com/docs/payments/checkout) and the [Stripe customer portal](https://stripe.com/docs/billing/subscriptions/customer-portal)
-- Automatic syncing of pricing plans and subscription statuses via [Stripe webhooks](https://stripe.com/docs/webhooks)
-
-## Demo
-
-- https://subscription-payments.vercel.app/
-
-[![Screenshot of demo](./public/demo.png)](https://subscription-payments.vercel.app/)
+- Integration with Polar Checkout and the Polar Customer Portal
+- Automatic syncing of pricing plans and subscription statuses via Polar webhooks
 
 ## Architecture
-
-![Architecture diagram](./public/architecture_diagram.png)
 
 ## Step-by-step setup
 
@@ -59,11 +51,9 @@ Otherwise navigate to the [API settings](https://app.supabase.com/project/_/sett
 
 Congrats, this completes the Supabase setup, almost there!
 
-### Configure Stripe
+### Configure Polar
 
-Next, we'll need to configure [Stripe](https://stripe.com/) to handle test payments. If you don't already have a Stripe account, create one now.
-
-For the following steps, make sure you have the ["Test Mode" toggle](https://stripe.com/docs/testing) switched on.
+Next, we'll need to configure [Polar](https://sandbox.polar.sh/) to handle test payments. If you don't already have a Polar account, create one now.
 
 #### Create a Webhook
 
