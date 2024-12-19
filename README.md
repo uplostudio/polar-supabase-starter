@@ -53,7 +53,7 @@ Congrats, this completes the Supabase setup, almost there!
 
 ### Configure Polar
 
-Next, we'll need to configure [Polar](https://sandbox.polar.sh/) to handle test payments. If you don't already have a Polar account, create one now.
+Next, we'll need to configure [Polar](https://polar.sh/) to handle test payments. If you don't already have a Polar account, create one now.
 
 #### Create a Webhook
 

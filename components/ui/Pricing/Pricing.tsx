@@ -10,6 +10,7 @@ import { User } from '@supabase/supabase-js';
 import cn from 'classnames';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { SubscriptionRecurringInterval } from '@polar-sh/sdk/models/components';
 
 type Subscription = Tables<'subscriptions'>;
 type Product = Tables<'products'>;
@@ -30,8 +31,6 @@ interface Props {
   subscription: SubscriptionWithProduct | null;
 }
 
-type BillingInterval = 'lifetime' | 'year' | 'month';
-
 export default function Pricing({ user, products, subscription }: Props) {
   const intervals = Array.from(
     new Set(
@@ -42,7 +41,7 @@ export default function Pricing({ user, products, subscription }: Props) {
   );
   const router = useRouter();
   const [billingInterval, setBillingInterval] =
-    useState<BillingInterval>('month');
+    useState<SubscriptionRecurringInterval>('month');
   const [priceIdLoading, setPriceIdLoading] = useState<string>();
   const currentPath = usePathname();
 
@@ -90,11 +89,11 @@ export default function Pricing({ user, products, subscription }: Props) {
             No subscription pricing plans found. Create them in your{' '}
             <a
               className="text-pink-500 underline"
-              href="https://dashboard.stripe.com/products"
+              href="https://polar.sh/start"
               rel="noopener noreferrer"
               target="_blank"
             >
-              Stripe Dashboard
+              Polar Dashboard
             </a>
             .
           </p>
