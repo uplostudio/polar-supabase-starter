@@ -34,43 +34,34 @@ export type Database = {
       }
       prices: {
         Row: {
-          active: boolean | null
-          currency: string | null
-          description: string | null
           id: string
-          interval: Database["public"]["Enums"]["pricing_plan_interval"] | null
-          interval_count: number | null
           metadata: Json | null
+          price_amount: number | null
           product_id: string | null
-          trial_period_days: number | null
+          recurring_interval:
+            | Database["public"]["Enums"]["pricing_plan_interval"]
+            | null
           type: Database["public"]["Enums"]["pricing_type"] | null
-          unit_amount: number | null
         }
         Insert: {
-          active?: boolean | null
-          currency?: string | null
-          description?: string | null
           id: string
-          interval?: Database["public"]["Enums"]["pricing_plan_interval"] | null
-          interval_count?: number | null
           metadata?: Json | null
+          price_amount?: number | null
           product_id?: string | null
-          trial_period_days?: number | null
+          recurring_interval?:
+            | Database["public"]["Enums"]["pricing_plan_interval"]
+            | null
           type?: Database["public"]["Enums"]["pricing_type"] | null
-          unit_amount?: number | null
         }
         Update: {
-          active?: boolean | null
-          currency?: string | null
-          description?: string | null
           id?: string
-          interval?: Database["public"]["Enums"]["pricing_plan_interval"] | null
-          interval_count?: number | null
           metadata?: Json | null
+          price_amount?: number | null
           product_id?: string | null
-          trial_period_days?: number | null
+          recurring_interval?:
+            | Database["public"]["Enums"]["pricing_plan_interval"]
+            | null
           type?: Database["public"]["Enums"]["pricing_type"] | null
-          unit_amount?: number | null
         }
         Relationships: [
           {
@@ -218,7 +209,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      pricing_plan_interval: "day" | "week" | "month" | "year"
+      pricing_plan_interval: "month" | "year"
       pricing_type: "one_time" | "recurring"
       subscription_status:
         | "trialing"

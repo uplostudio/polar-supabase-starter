@@ -70,28 +70,18 @@ create policy "Allow public read-only access." on products for select using (tru
 * Note: prices are created and managed in Polar and synced to our DB via Polar webhooks.
 */
 create type pricing_type as enum ('one_time', 'recurring');
-create type pricing_plan_interval as enum ('day', 'week', 'month', 'year');
+create type pricing_plan_interval as enum ('month', 'year');
 create table prices (
   -- Price ID from Polar, e.g. price_1234.
   id text primary key,
   -- The ID of the prduct that this price belongs to.
   product_id text references products, 
-  -- Whether the price can be used for new purchases.
-  active boolean,
-  -- A brief description of the price.
-  description text,
-  -- The unit amount as a positive integer in the smallest currency unit (e.g., 100 cents for US$1.00 or 100 for ¥100, a zero-decimal currency).
-  unit_amount bigint,
-  -- Three-letter ISO currency code, in lowercase.
-  currency text check (char_length(currency) = 3),
+  -- Price amount in USD cents
+  price_amount integer,
   -- One of `one_time` or `recurring` depending on whether the price is for a one-time purchase or a recurring (subscription) purchase.
   type pricing_type,
   -- The frequency at which a subscription is billed. One of `day`, `week`, `month` or `year`.
-  interval pricing_plan_interval,
-  -- The number of intervals (specified in the `interval` attribute) between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months.
-  interval_count integer,
-  -- Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://polar.com/docs/api#create_subscription-trial_from_plan).
-  trial_period_days integer,
+  recurring_interval pricing_plan_interval,
   -- Set of key-value pairs, used to store additional information about the object in a structured format.
   metadata jsonb
 );

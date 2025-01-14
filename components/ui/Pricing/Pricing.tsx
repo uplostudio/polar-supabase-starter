@@ -1,14 +1,10 @@
 'use client';
 
 import Button from '@/components/ui/Button';
-import LogoCloud from '@/components/ui/LogoCloud';
 import type { Tables } from '@/types_db';
-import { getStripe } from '@/utils/stripe/client';
-import { checkoutWithStripe } from '@/utils/stripe/server';
-import { getErrorRedirect } from '@/utils/helpers';
 import { User } from '@supabase/supabase-js';
 import cn from 'classnames';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { SubscriptionRecurringInterval } from '@polar-sh/sdk/models/components';
 
@@ -35,7 +31,7 @@ export default function Pricing({ user, products, subscription }: Props) {
   const intervals = Array.from(
     new Set(
       products.flatMap((product) =>
-        product?.prices?.map((price) => price?.interval)
+        product?.prices?.map((price) => price?.recurring_interval)
       )
     )
   );
@@ -43,7 +39,6 @@ export default function Pricing({ user, products, subscription }: Props) {
   const [billingInterval, setBillingInterval] =
     useState<SubscriptionRecurringInterval>('month');
   const [priceIdLoading, setPriceIdLoading] = useState<string>();
-  const currentPath = usePathname();
 
   const handleStripeCheckout = async (price: Price) => {
     setPriceIdLoading(price.id);
@@ -53,29 +48,9 @@ export default function Pricing({ user, products, subscription }: Props) {
       return router.push('/signin/signup');
     }
 
-    const { errorRedirect, sessionId } = await checkoutWithStripe(
-      price,
-      currentPath
+    router.push(
+      `/checkout?productPriceId=${price.id}&customerEmail=${user.email}`
     );
-
-    if (errorRedirect) {
-      setPriceIdLoading(undefined);
-      return router.push(errorRedirect);
-    }
-
-    if (!sessionId) {
-      setPriceIdLoading(undefined);
-      return router.push(
-        getErrorRedirect(
-          currentPath,
-          'An unknown error occurred.',
-          'Please try again later or contact a system administrator.'
-        )
-      );
-    }
-
-    const stripe = await getStripe();
-    stripe?.redirectToCheckout({ sessionId });
 
     setPriceIdLoading(undefined);
   };
@@ -89,7 +64,7 @@ export default function Pricing({ user, products, subscription }: Props) {
             No subscription pricing plans found. Create them in your{' '}
             <a
               className="text-pink-500 underline"
-              href="https://polar.sh/start"
+              href="https://sandbox.polar.sh/start"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -98,7 +73,6 @@ export default function Pricing({ user, products, subscription }: Props) {
             .
           </p>
         </div>
-        <LogoCloud />
       </section>
     );
   } else {
@@ -145,14 +119,14 @@ export default function Pricing({ user, products, subscription }: Props) {
           <div className="mt-12 space-y-0 sm:mt-16 flex flex-wrap justify-center gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0">
             {products.map((product) => {
               const price = product?.prices?.find(
-                (price) => price.interval === billingInterval
+                (price) => price.recurring_interval === billingInterval
               );
               if (!price) return null;
               const priceString = new Intl.NumberFormat('en-US', {
                 style: 'currency',
-                currency: price.currency!,
+                currency: 'USD',
                 minimumFractionDigits: 0
-              }).format((price?.unit_amount || 0) / 100);
+              }).format((price?.price_amount || 0) / 100);
               return (
                 <div
                   key={product.id}
@@ -195,7 +169,6 @@ export default function Pricing({ user, products, subscription }: Props) {
               );
             })}
           </div>
-          <LogoCloud />
         </div>
       </section>
     );
