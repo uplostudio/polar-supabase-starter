@@ -9,6 +9,7 @@ import {
 } from '@/utils/helpers';
 import { Tables } from '@/types_db';
 import { Polar } from '@polar-sh/sdk'; // Import Polar API
+import { polar } from './config';
 
 type Price = Tables<'prices'>;
 
@@ -16,10 +17,6 @@ type CheckoutResponse = {
   errorRedirect?: string;
   sessionUrl?: string;
 };
-
-export const polar = new Polar({
-  accessToken: process.env.POLAR_ACCESS_TOKEN,
-});
 
 export async function checkoutWithPolar(
   price: Price,
@@ -55,11 +52,11 @@ export async function checkoutWithPolar(
     try {
       session = await polar.checkouts.custom.create({
         metadata: {
-          userId: user.id,
+          userId: user.id
         },
         customerEmail: user.email,
         productPriceId: price.id,
-        successUrl: getURL(redirectPath),
+        successUrl: getURL(redirectPath)
       });
     } catch (err) {
       console.error(err);
@@ -124,14 +121,13 @@ export async function createPolarPortal(currentPath: string) {
     }
 
     try {
-      const { url } = await polar.createBillingPortalSession({
-        customer,
-        returnUrl: getURL('/account')
+      const { customerPortalUrl } = await polar.customerSessions.create({
+        customerId: customer
       });
-      if (!url) {
+      if (!customerPortalUrl) {
         throw new Error('Could not create billing portal');
       }
-      return url;
+      return customerPortalUrl;
     } catch (err) {
       console.error(err);
       throw new Error('Could not create billing portal');

@@ -33,23 +33,23 @@ create trigger on_auth_user_created
 
 /**
 * CUSTOMERS
-* Note: this is a private table that contains a mapping of user IDs to Stripe customer IDs.
+* Note: this is a private table that contains a mapping of user IDs to Polar customer IDs.
 */
 create table customers (
   -- UUID from auth.users
   id uuid references auth.users not null primary key,
-  -- The user's customer ID in Stripe. User must not be able to update this.
-  stripe_customer_id text
+  -- The user's customer ID in Polar. User must not be able to update this.
+  polar_customer_id text
 );
 alter table customers enable row level security;
 -- No policies as this is a private table that the user must not have access to.
 
 /** 
 * PRODUCTS
-* Note: products are created and managed in Stripe and synced to our DB via Stripe webhooks.
+* Note: products are created and managed in Polar and synced to our DB via Polar webhooks.
 */
 create table products (
-  -- Product ID from Stripe, e.g. prod_1234.
+  -- Product ID from Polar, e.g. prod_1234.
   id text primary key,
   -- Whether the product is currently available for purchase.
   active boolean,
@@ -57,7 +57,7 @@ create table products (
   name text,
   -- The product's description, meant to be displayable to the customer. Use this field to optionally store a long form explanation of the product being sold for your own rendering purposes.
   description text,
-  -- A URL of the product image in Stripe, meant to be displayable to the customer.
+  -- A URL of the product image in Polar, meant to be displayable to the customer.
   image text,
   -- Set of key-value pairs, used to store additional information about the object in a structured format.
   metadata jsonb
@@ -67,12 +67,12 @@ create policy "Allow public read-only access." on products for select using (tru
 
 /**
 * PRICES
-* Note: prices are created and managed in Stripe and synced to our DB via Stripe webhooks.
+* Note: prices are created and managed in Polar and synced to our DB via Polar webhooks.
 */
 create type pricing_type as enum ('one_time', 'recurring');
 create type pricing_plan_interval as enum ('day', 'week', 'month', 'year');
 create table prices (
-  -- Price ID from Stripe, e.g. price_1234.
+  -- Price ID from Polar, e.g. price_1234.
   id text primary key,
   -- The ID of the prduct that this price belongs to.
   product_id text references products, 
@@ -90,7 +90,7 @@ create table prices (
   interval pricing_plan_interval,
   -- The number of intervals (specified in the `interval` attribute) between subscription billings. For example, `interval=month` and `interval_count=3` bills every 3 months.
   interval_count integer,
-  -- Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://stripe.com/docs/api#create_subscription-trial_from_plan).
+  -- Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://polar.com/docs/api#create_subscription-trial_from_plan).
   trial_period_days integer,
   -- Set of key-value pairs, used to store additional information about the object in a structured format.
   metadata jsonb
@@ -100,11 +100,11 @@ create policy "Allow public read-only access." on prices for select using (true)
 
 /**
 * SUBSCRIPTIONS
-* Note: subscriptions are created and managed in Stripe and synced to our DB via Stripe webhooks.
+* Note: subscriptions are created and managed in Polar and synced to our DB via Polar webhooks.
 */
 create type subscription_status as enum ('trialing', 'active', 'canceled', 'incomplete', 'incomplete_expired', 'past_due', 'unpaid', 'paused');
 create table subscriptions (
-  -- Subscription ID from Stripe, e.g. sub_1234.
+  -- Subscription ID from Polar, e.g. sub_1234.
   id text primary key,
   user_id uuid references auth.users not null,
   -- The status of the subscription object, one of subscription_status type above.
