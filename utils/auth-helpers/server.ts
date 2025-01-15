@@ -5,6 +5,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getURL, getErrorRedirect, getStatusRedirect } from 'utils/helpers';
 import { getAuthTypes } from 'utils/auth-helpers/settings';
+import { createOrRetrieveCustomer } from '../supabase/admin';
+import { polar } from '../polar/config';
 
 function isValidEmail(email: string) {
   var regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
@@ -187,6 +189,26 @@ export async function signUp(formData: FormData) {
     }
   });
 
+  if (data.user) {
+    // Create a new customer in Polar
+    try {
+      await createOrRetrieveCustomer({
+        email: email,
+        uuid: data.user.id
+      });
+    } catch (error) {
+      console.error('Failed to create customer in Polar:', error);
+
+      redirectPath = getErrorRedirect(
+        '/signin/signup',
+        'Failed to create customer in Polar.',
+        'Please try again.'
+      );
+
+      return redirectPath;
+    }
+  }
+
   if (error) {
     redirectPath = getErrorRedirect(
       '/signin/signup',
@@ -264,47 +286,6 @@ export async function updatePassword(formData: FormData) {
   return redirectPath;
 }
 
-export async function updateEmail(formData: FormData) {
-  // Get form data
-  const newEmail = String(formData.get('newEmail')).trim();
-
-  // Check that the email is valid
-  if (!isValidEmail(newEmail)) {
-    return getErrorRedirect(
-      '/account',
-      'Your email could not be updated.',
-      'Invalid email address.'
-    );
-  }
-
-  const supabase = createClient();
-
-  const callbackUrl = getURL(
-    getStatusRedirect('/account', 'Success!', `Your email has been updated.`)
-  );
-
-  const { error } = await supabase.auth.updateUser(
-    { email: newEmail },
-    {
-      emailRedirectTo: callbackUrl
-    }
-  );
-
-  if (error) {
-    return getErrorRedirect(
-      '/account',
-      'Your email could not be updated.',
-      error.message
-    );
-  } else {
-    return getStatusRedirect(
-      '/account',
-      'Confirmation emails sent.',
-      `You will need to confirm the update by clicking the links sent to both the old and new email addresses.`
-    );
-  }
-}
-
 export async function updateName(formData: FormData) {
   // Get form data
   const fullName = String(formData.get('fullName')).trim();
@@ -312,6 +293,18 @@ export async function updateName(formData: FormData) {
   const supabase = createClient();
   const { error, data } = await supabase.auth.updateUser({
     data: { full_name: fullName }
+  });
+
+  const polarCustomerId = await createOrRetrieveCustomer({
+    email: data.user?.email || '',
+    uuid: data.user?.id || ''
+  });
+
+  await polar.customers.update({
+    id: polarCustomerId,
+    customerUpdate: {
+      name: fullName
+    }
   });
 
   if (error) {

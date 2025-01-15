@@ -7,6 +7,7 @@ import cn from 'classnames';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { SubscriptionRecurringInterval } from '@polar-sh/sdk/models/components';
+import { createOrRetrieveCustomer } from '@/utils/supabase/admin';
 
 type Subscription = Tables<'subscriptions'>;
 type Product = Tables<'products'>;
@@ -40,7 +41,14 @@ export default function Pricing({ user, products, subscription }: Props) {
     useState<SubscriptionRecurringInterval>('month');
   const [priceIdLoading, setPriceIdLoading] = useState<string>();
 
-  const handleStripeCheckout = async (price: Price) => {
+  const handleStripeCheckout = async (
+    price: Price,
+    subscription: SubscriptionWithProduct | null
+  ) => {
+    if (subscription) {
+      return router.push('/account/portal');
+    }
+
     setPriceIdLoading(price.id);
 
     if (!user) {
@@ -48,9 +56,17 @@ export default function Pricing({ user, products, subscription }: Props) {
       return router.push('/signin/signup');
     }
 
-    router.push(
-      `/checkout?productPriceId=${price.id}&customerEmail=${user.email}`
-    );
+    const polarCustomerId = await createOrRetrieveCustomer({
+      email: user.email || '',
+      uuid: user.id
+    });
+
+    const url = new URL('/checkout', window.location.origin);
+    url.searchParams.set('productPriceId', price.id);
+    url.searchParams.set('customerId', polarCustomerId);
+    url.searchParams.set('metadata', JSON.stringify({ customerId: user.id }));
+
+    router.push(url.toString());
 
     setPriceIdLoading(undefined);
   };
@@ -159,7 +175,7 @@ export default function Pricing({ user, products, subscription }: Props) {
                       variant="slim"
                       type="button"
                       loading={priceIdLoading === price.id}
-                      onClick={() => handleStripeCheckout(price)}
+                      onClick={() => handleStripeCheckout(price, subscription)}
                       className="block w-full py-2 mt-8 text-sm font-semibold text-center text-white rounded-md hover:bg-zinc-900"
                     >
                       {subscription ? 'Manage' : 'Subscribe'}

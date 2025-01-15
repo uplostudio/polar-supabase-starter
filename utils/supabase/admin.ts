@@ -1,3 +1,5 @@
+'use server';
+
 import { polar } from '@/utils/polar/config';
 import { createClient } from '@supabase/supabase-js';
 import type { Database, Tables, TablesInsert } from 'types_db';
@@ -52,34 +54,98 @@ const upsertProductRecord = async (
   console.log(`Price inserted/updated: ${priceData.map((p) => p.id)}`);
 };
 
-const upsertCustomerToSupabase = async (uuid: string, polarId: string) => {
+const upsertCustomerToSupabase = async (uuid: string, customerId: string) => {
   const { error: upsertError } = await supabaseAdmin
     .from('customers')
-    .upsert([{ id: uuid, polar_customer_id: polarId }]);
+    .upsert([{ id: uuid, polar_customer_id: customerId }]);
 
   if (upsertError)
     throw new Error(
       `Supabase customer record creation failed: ${upsertError.message}`
     );
 
-  return polarId;
+  return customerId;
+};
+
+const createCustomerInPolar = async (uuid: string, email: string) => {
+  const customerData = {
+    metadata: { supabaseUUID: uuid },
+    email: email,
+    organizationId: process.env.POLAR_ORGANIZATION_ID
+  };
+  const newCustomer = await polar.customers.create(customerData);
+  if (!newCustomer) throw new Error('Polar customer creation failed.');
+
+  return newCustomer.id;
 };
 
 const createOrRetrieveCustomer = async ({
   email,
-  uuid,
-  polarId
+  uuid
 }: {
   email: string;
   uuid: string;
-  polarId: string;
 }) => {
-  // If Supabase has no record, create a new record and return Polar customer ID
-  const upsertedPolarCustomer = await upsertCustomerToSupabase(uuid, polarId);
-  if (!upsertedPolarCustomer)
-    throw new Error('Supabase customer record creation failed.');
+  // Check if the customer already exists in Supabase
+  const { data: existingSupabaseCustomer, error: queryError } =
+    await supabaseAdmin
+      .from('customers')
+      .select('*')
+      .eq('id', uuid)
+      .maybeSingle();
 
-  return upsertedPolarCustomer;
+  if (queryError) {
+    throw new Error(`Supabase customer lookup failed: ${queryError.message}`);
+  }
+
+  // Retrieve the Polar customer ID using the Supabase customer ID, with email fallback
+  let polarCustomerId: string | undefined;
+  if (existingSupabaseCustomer?.polar_customer_id) {
+    const existingPolarCustomer = await polar.customers.get({
+      id: existingSupabaseCustomer.polar_customer_id
+    });
+    polarCustomerId = existingPolarCustomer.id;
+  }
+
+  // If still no polarCustomerId, create a new customer in Polar
+  const polarIdToInsert = polarCustomerId
+    ? polarCustomerId
+    : await createCustomerInPolar(uuid, email);
+  if (!polarIdToInsert) throw new Error('Polar customer creation failed.');
+
+  if (existingSupabaseCustomer && polarCustomerId) {
+    // If Supabase has a record but doesn't match Polar, update Supabase record
+    if (existingSupabaseCustomer.polar_customer_id !== polarCustomerId) {
+      const { error: updateError } = await supabaseAdmin
+        .from('customers')
+        .update({ polar_customer_id: polarCustomerId })
+        .eq('id', uuid);
+
+      if (updateError)
+        throw new Error(
+          `Supabase customer record update failed: ${updateError.message}`
+        );
+      console.warn(
+        `Supabase customer record mismatched Polar ID. Supabase record updated.`
+      );
+    }
+    // If Supabase has a record and matches Polar, return Polar customer ID
+    return polarCustomerId;
+  } else {
+    console.warn(
+      `Supabase customer record was missing. A new record was created.`
+    );
+
+    // If Supabase has no record, create a new record and return Polar customer ID
+    const upsertedPolarCustomer = await upsertCustomerToSupabase(
+      uuid,
+      polarIdToInsert
+    );
+    if (!upsertedPolarCustomer)
+      throw new Error('Supabase customer record creation failed.');
+
+    return upsertedPolarCustomer;
+  }
 };
 
 const manageSubscriptionStatusChange = async (
@@ -87,34 +153,30 @@ const manageSubscriptionStatusChange = async (
     | Polar.WebhookSubscriptionUpdatedPayload
     | Polar.WebhookSubscriptionCreatedPayload
 ) => {
-  const subscriptionId = payload.data.id;
-  const customerId = payload.data.customer.id;
+  const polarCustomerId = payload.data.customer.id;
 
   // Get customer's UUID from mapping table.
   let { data: customerData, error: noCustomerError } = await supabaseAdmin
     .from('customers')
     .select('id')
-    .eq('polar_customer_id', customerId)
+    .eq('polar_customer_id', polarCustomerId)
     .single();
 
-  if (noCustomerError) {
+  if (noCustomerError || !customerData) {
     const createdCustomerId = await createOrRetrieveCustomer({
       email: payload.data.customer.email,
-      uuid: customerId
+      uuid: payload.data.metadata['customerId'] as string
     });
 
     customerData = { id: createdCustomerId };
   }
 
-  const { id: uuid } = customerData!;
+  const subscription = payload.data;
 
-  const subscription = await polar.customerPortal.subscriptions.get({
-    id: subscriptionId
-  });
   // Upsert the latest status of the subscription object.
   const subscriptionData: TablesInsert<'subscriptions'> = {
     id: subscription.id,
-    user_id: uuid,
+    user_id: customerData.id,
     status: subscription.status,
     price_id: subscription.price.id,
     cancel_at_period_end: subscription.cancelAtPeriodEnd,
@@ -138,7 +200,7 @@ const manageSubscriptionStatusChange = async (
       `Subscription insert/update failed: ${upsertError.message}`
     );
   console.log(
-    `Inserted/updated subscription [${subscription.id}] for user [${uuid}]`
+    `Inserted/updated subscription [${subscription.id}] for user [${customerData.id}]`
   );
 };
 

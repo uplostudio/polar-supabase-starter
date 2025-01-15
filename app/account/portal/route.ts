@@ -1,3 +1,5 @@
+import { Database } from '@/types_db';
+import { createOrRetrieveCustomer } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import { CustomerPortal } from '@polar-sh/nextjs';
 
@@ -11,15 +13,13 @@ export const GET = CustomerPortal({
       data: { user }
     } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('id', user?.id ?? '');
-
-    if (error) {
-      throw new Error('Failed to get customer');
+    if (!user) {
+      throw new Error('User not found');
     }
 
-    return data[0].polar_customer_id ?? '';
+    return createOrRetrieveCustomer({
+      email: user.email ?? '',
+      uuid: user.id
+    });
   }
 });
